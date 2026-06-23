@@ -97,7 +97,7 @@ to handle.
 
 | Param | Type | Default | Notes |
 |---|---|---|---|
-| `limit` | number | `20` | Capped at `100` |
+| `limit` | number | `20` | Capped at `100`. The bundled frontend always sends `limit=24` explicitly, so the API's own default of `20` only applies when a caller omits the param entirely (e.g. hitting the endpoint directly). |
 | `category` | string | — | Optional exact-match filter |
 | `cursor` | string | — | Opaque token from a previous response's `nextCursor` |
 
@@ -115,9 +115,8 @@ Notes on the response shape:
   avoid precision loss (JS numbers can't safely represent every possible
   `BIGINT`, and `NUMERIC` needs exact decimal precision for currency).
 - The category filter is **not** encoded in the cursor — it must be
-  repeated by the client on every paginated request. This was a
-  deliberate simplicity tradeoff: the cursor only encodes position, the
-  caller already knows which filter it's currently showing.
+  repeated by the client on every paginated request. See
+  [Known limitation](#known-limitation-not-yet-fixed) below.
 - `hasMore` is computed by fetching `limit + 1` rows and checking if an
   extra row came back, avoiding a separate `COUNT(*)` (expensive at
   this scale, and only gets worse as the table grows).
@@ -178,24 +177,21 @@ just asserted. Summary of what was checked and how:
 
 ## What I'd improve with more time
 
-- **Build step for the backend.** Currently runs via `tsx` directly in
-  production rather than compiling to `dist/` via `tsc` first. Fine at
-  this scale, but a proper build step is the more standard production
-  setup.
-- **Encode the active filter into the cursor itself**, or at least
-  validate server-side that a cursor's implicit context (e.g. which
-  category it was generated under) matches the current request, to make
-  the "forgot to repeat the filter" failure mode impossible rather than
-  just documented.
-- **Rate limiting / input validation middleware** (e.g. `zod`) on query
-  params, rather than ad-hoc parsing in the route handler.
-- **Automated tests** for the pagination logic (the tiebreaker and
-  concurrent-insert scenarios were verified manually against the live
-  DB during development — turning those into repeatable integration
-  tests would be the natural next step).
 - **CORS origin list via environment variable** rather than hardcoded
   in source, so adding a new deployed frontend doesn't require a code
   change.
+- **Build step for the backend in production.** The `build`/`start`
+  scripts already exist in `package.json` — the remaining step is
+  switching Render's start command from running `tsx` directly to
+  `npm run build && npm start`.
+
+## Known limitation (not yet fixed)
+
+- **The category filter isn't encoded in the cursor** — it must be
+  repeated by the client on every paginated request. A cleaner fix
+  would validate that a cursor's filter context matches the current
+  request, but that touches the cursor encode/decode logic and the
+  route handler more deeply than I've made time for yet.
 
 ---
 
