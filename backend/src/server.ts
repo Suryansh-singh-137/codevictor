@@ -2,7 +2,11 @@ import express, { type Request, type Response } from "express";
 import { listProducts, listCategories } from "./product.js";
 import cors from "cors";
 const app = express();
-app.use(cors({ origin: "http://localhost:3001" }));
+app.use(
+  cors({
+    origin: ["http://localhost:3001", "https://codevictor.vercel.app"],
+  }),
+);
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 app.get("/health", (_req: Request, res: Response) => {
