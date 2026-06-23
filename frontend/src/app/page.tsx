@@ -82,7 +82,7 @@ export default function Home() {
       <header className="border-b border-border">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col gap-1">
           <p className="text-xs font-mono uppercase tracking-wider text-primary">
-            codevector · take-home
+            pagination
           </p>
           <h1 className="text-2xl font-semibold tracking-tight">Catalog</h1>
           <p className="text-sm text-muted-foreground">
