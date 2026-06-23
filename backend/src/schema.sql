@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-// indexes  
+--indexes  
 
 CREATE INDEX IF NOT EXISTS idx_products_created_id
     ON products (created_at DESC, id DESC);
