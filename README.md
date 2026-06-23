@@ -175,3 +175,87 @@ just asserted. Summary of what was checked and how:
 - **Frontend:** Vercel (free tier), root directory `frontend`
 
 ---
+
+## What I'd improve with more time
+
+- **Build step for the backend.** Currently runs via `tsx` directly in
+  production rather than compiling to `dist/` via `tsc` first. Fine at
+  this scale, but a proper build step is the more standard production
+  setup.
+- **Encode the active filter into the cursor itself**, or at least
+  validate server-side that a cursor's implicit context (e.g. which
+  category it was generated under) matches the current request, to make
+  the "forgot to repeat the filter" failure mode impossible rather than
+  just documented.
+- **Rate limiting / input validation middleware** (e.g. `zod`) on query
+  params, rather than ad-hoc parsing in the route handler.
+- **Automated tests** for the pagination logic (the tiebreaker and
+  concurrent-insert scenarios were verified manually against the live
+  DB during development — turning those into repeatable integration
+  tests would be the natural next step).
+- **CORS origin list via environment variable** rather than hardcoded
+  in source, so adding a new deployed frontend doesn't require a code
+  change.
+
+---
+
+## How I used AI
+
+I used two tools at different stages, for different purposes.
+
+**ChatGPT** ([conversation log](https://chatgpt.com/share/6a3a7120-4bdc-83ee-a377-f60d02e14490))
+was used first, before writing any code, purely to research what
+pagination approaches existed and get oriented — alongside reading
+ByteByteGo's [pagination techniques guide](https://bytebytego.com/guides/how-do-we-perform-pagination-in-api-design/).
+This is where I first encountered the term "cursor-based pagination"
+and got a rough sense that it was the right direction for the
+concurrent-write correctness requirement, before I understood any of
+the actual mechanics.
+
+**Claude** did essentially everything from that point on — I came in
+only knowing basic CRUD, with no prior exposure to migrations, seeding
+strategies, indexing, or pagination mechanics beyond having just heard
+the term `LIMIT`/`OFFSET`. Claude was used as a tutor rather than a
+code-generator I copy-pasted from blindly.
+
+**What it helped with:**
+- Explaining *why* `OFFSET` pagination breaks under concurrent writes
+  (not just that it does), including building small interactive demos
+  that let me trigger the bug myself and watch it happen, rather than
+  taking it on faith.
+- Explaining batch inserts and why per-row insert loops are slow
+  (network round-trip latency, not database processing time).
+- Walking through the cursor pagination query and base64 cursor
+  encoding/decoding line by line, with concrete worked examples.
+- Helping me verify correctness against the real database (ground-truth
+  SQL comparisons, forced tiebreaker collisions, live concurrent-insert
+  testing) rather than just trusting the code.
+- Debugging real issues I hit during setup (a `//` SQL comment that
+  should've been `--`, a port collision between frontend and backend,
+  a CORS misconfiguration) — in each case by reading the actual error
+  message with me and tracing the cause, not just supplying a fix blind.
+- Scaffolding the bonus frontend (Next.js + shadcn/ui) — this part was
+  explicitly out of scope for grading, so I leaned on AI more heavily
+  here than on the backend.
+
+**Where I pushed back or asked for changes:**
+- An early version of the dynamic `WHERE`-clause builder used array-length
+  arithmetic to compute SQL placeholder numbers (`$1`, `$2`...) generically
+  across 4 possible filter combinations. I found this hard to read and
+  asked for it to be rewritten as 4 explicit, fully-spelled-out branches
+  instead — more lines of code, but each one independently readable
+  without tracing mutable state. This is the version that shipped.
+- I asked directly whether a screenshot comparison was actually correct
+  before accepting it — at one point I incorrectly predicted a specific
+  row's position while manually checking output, which led to catching
+  and correcting that mistake by cross-referencing against a fresh
+  ground-truth query rather than trusting the first comparison.
+
+**Things worth being upfront about:**
+- The actual SQL logic, schema design, and pagination approach were
+  explained to me concept-first, and I could trace and explain every
+  line by the end — this README's technical sections reflect that
+  understanding, not just AI-generated prose.
+- The frontend's visual design and component scaffolding leaned on AI
+  significantly more than the backend did, consistent with the
+  assignment's note that UI code isn't graded.
